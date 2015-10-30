@@ -1,0 +1,159 @@
+---
+title: "Regression Models"
+author: "Javier"
+date: "27 de octubre de 2015"
+output: pdf_document
+---
+
+# Summary.
+
+In this report we have used the dataset from the 1974 Motor Trend US magazine to answer the following questions:
+.	Is an automatic or manual transmission better for miles per gallon (MPG)?
+.	How different is the MPG between automatic and manual transmissions?
+The objective is to determine through statistical techniques if there is statistically significant difference between the mean MPG for automatic and manual transmission cars.
+First we make an exploratory analysis of the data set. Multivariable regression model using backward and forward is then constructed. Finally, conclusions are described.
+
+# Exploratory Data Analysis.
+
+We want to compare the levels Automatic and Manual of the dichotomous variable using side-by-side boxplots:
+
+
+```{r}
+data(mtcars)
+attach(mtcars)
+summary(mtcars$mpg)
+aggregate(mtcars$mpg,list(mtcars$am),summary)
+
+boxplot(mpg ~ am, data=mtcars,outline=TRUE,xlab = "Transmissions",ylab = "MPG",names=c("Automatic","Manual"),col=c("yellow","blue"),main="Consumo de Combustible, 1974")
+
+```
+
+The mean difference in absolute value between cars with manual transmissions and Cars with automatic transmissions is 7.24.
+The plot shows that the variable mpg performs better mpg in cars with manual transmissions than in cars with automatic transmissions. 
+We will analyze whether mpg variable follows a normal distribution. 
+
+
+```{r, echo=FALSE}
+histog<-hist(mtcars$mpg, breaks=10, col="orange", xlab="Miles Per Gallon", main="Histogram of Miles per Gallon")
+
+xfit<-seq(min(mtcars$mpg),max(mtcars$mpg),length=40)
+
+yfit<-dnorm(xfit,mean=mean(mtcars$mpg),sd=sd(mtcars$mpg))
+
+yfit <- yfit*diff(histog$mids[1:2])*length(mtcars$mpg)
+
+lines(xfit, yfit, col="red", lwd=3)
+
+```
+
+To make a QQ plot this way, R has the special qqnorm() function. As the name implies, this function plots your sample against a normal distribution. You simply give the sample you want to plot as a first argument and add any graphical parameters you like.
+R then creates a sample with values coming from the standard normal distribution, or a normal distribution with a mean of zero and a standard deviation of one. With this second sample, R creates the QQ plot as explained before.
+
+We can use the qqnorm() function twice to create both plots. For the variable am, you can use the following code:
+
+```{r}
+library(stats)
+
+qqnorm( mtcars$mpg[mtcars$am==0], main='Manual')
+qqline( mtcars$mpg[mtcars$am==0] )
+qqnorm( mtcars$mpg[mtcars$am==1], main='Automatic')
+qqline( mtcars$mpg[mtcars$am==1] )
+
+```
+
+Now we study if there is a signficiant difference in the mean MPG between manual 
+transmission and automatic transmission with the T-Student test:
+
+```{r}
+t.test(mtcars$mpg[mtcars$am==0],mtcars$mpg[mtcars$am==1])
+```
+
+
+This test shows the existence of signficiant difference in the mean in the mean MPG between manual transmission and automatic transmission with a p-value of 0.001374.
+
+# Building our Model.
+## Correlation
+Before applying the regression model we studied the correlation of predictors:
+
+```{r}
+data(mtcars)
+cor(mtcars)
+sort(cor(mtcars)[1,])
+
+```
+
+We note that the variables wt, cyl, disp, and hp are very correlated with the dependent variable mpg. Instead the variable is not strongly correlated am.
+
+The variables cyl, vs, am, gear and carb should be treated as discrete variables.
+
+```{r}
+cars <- mtcars
+
+cars$am <- as.factor(cars$am)
+cars$cyl <- as.factor(cars $cyl) 
+cars$vs <- as.factor(cars $vs) 
+cars$am <- as.factor(cars $am) 
+cars$gear <- as.factor(cars $gear)
+cars$carb <- as.factor(cars $carb)
+
+```
+
+To begin our model testing, we fit a multiple linear regression for mpg and we perform Backward Elimination and Forward Selection. Also based on Model AIC (not individual regression coefficients). fit1 and fit2 represent "extreme" models.
+
+
+```{r}
+library(MASS)
+fit1 <- lm(mpg ~ ., data=cars)
+fit2 <- lm(mpg ~ 1, data=cars)
+met1 <- stepAIC(fit1,direction="backward")
+met2<-stepAIC(fit2,direction="forward",scope=list(upper=fit1,lower=fit2))
+
+```
+
+
+The selected model is as follows (the AIC is the smallest of all models):
+
+```{r}
+fit3<-lm(mpg ~ wt + cyl + hp + am, data=cars)
+
+summary(fit3)
+
+```
+
+We analyze heteroskedasticity and normality of residuals:
+
+Test heteroskedasticity, Null is constant variance.
+Tested whether the disturbances variance is not constant throughout the observations.
+
+```{r}
+library(car)
+
+ncvTest(fit3)
+
+residuos <- rstandard(fit3)
+valores.ajustados <- fitted(fit3)
+plot(valores.ajustados, residuos)
+
+
+```
+
+No special pattern is observed, so as homoscedasticity as both linearity are reasonable hypothesis.
+
+```{r}
+qqnorm(residuos)
+qqline(residuos)
+
+par(mfrow = c(2,2))
+
+plot(fit3)
+
+
+```
+
+# Conclusion.
+
+The results from the multivariate regression reveal that, on average, manual transmission cars get 1.809 miles per gallon more than automatic transmission cars. The variables wt, cyl6 and hp influence in the variable mpg.render('test1.Rmd',pdf_document())
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
